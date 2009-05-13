@@ -1,0 +1,94 @@
+%% Copyright 2009 Joony (jonathan.mcallister@gmail.com)
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+%%
+%% web_users_register.erl
+%%
+%% The registration page where users can sign up.  After registration,
+%% users will automatically be logged in.
+%%
+
+-module (web_users_register).
+-include_lib ("nitrogen/include/wf.inc").
+-compile(export_all).
+
+main() ->
+    #template { file="./wwwroot/template.html"}.
+ 																	   
+
+title() ->
+	"web_users_register".
+
+body() ->
+    Body = [
+	    #label { text="Register" },
+	    #br {},
+	    #label { text="Username:" },
+	    #br {},
+	    #textbox { id=username },
+	    #br {},
+	    #label { text="Email Address:" },
+	    #br {},
+	    #textbox { id=email_address },
+	    #br {},
+	    #label { text="Password:" },
+	    #br {},
+	    #password { id=password },
+	    #br {},
+	    #label { text="Confirm Password:" },
+	    #br {},
+	    #password { id=password2 },
+	    #br {},
+	    #button { id=submit, text="Register", postback=register },
+	    #flash { id=flash },
+	    #panel { id=test }
+	   ],
+    wf:wire(submit, username, #validate { attach_to=username, validators=[#is_required { text="Required." }]}),
+    wf:wire(submit, username, #validate { attach_to=username, validators=[#custom { text="Username already registered.", function=(fun(X, Y) -> is_username_used(X, Y) end) }] }),
+    wf:wire(submit, username, #validate { attach_to=username, validators=[#custom { text="Error: Spaces are not allowed in usernames.", function=(fun(X, Y) -> check_username(X, Y) end) }] }),
+    wf:wire(submit, username, #validate { attach_to=username, validators=[#min_length { text="Error: Username has to be at least three characters.", length=3 }] }),
+    wf:wire(submit, email_address, #validate { attach_to=email_address, validators=[#is_required { text="Required." }] }),
+    wf:wire(submit, email_address, #validate { attach_to=email_address, validators=[#is_email { text="Required: Ensure that you have entered your email address correctly." }] }),
+    wf:wire(submit, email_address, #validate { attach_to=email_address, validators=[#custom { text="Email already registered.", function=(fun(X, Y) -> is_email_used(X, Y) end) }] }),
+    wf:wire(submit, password, #validate { attach_to=password2, validators=[#confirm_password { text="Error: Passwords do not match.", password=password2 }] }),
+    wf:wire(submit, password, #validate { attach_to=password, validators=[#min_length { text="Error: Password must be at least six characters.", length=6 }] }),
+    wf:render(Body).
+
+    
+
+
+event(register) ->
+    case db_users:add_user(hd(wf:q(username)), hd(wf:q(email_address)), hd(wf:q(password))) of
+	ok ->
+	    io:format("New user: ~s has signed up~n", [wf:q(username)]),
+	    wf:user(hd(wf:q(username))),
+            wf:redirect("dashboard");
+	aborted ->
+	    wc:flash("Error: Registration failed, please try again.")
+    end;
+event(_) -> ok.
+
+
+is_username_used(_, _) ->
+    db_users:is_username_used(hd(wf:q(username))).
+
+is_email_used(_, _) ->
+    db_users:is_email_used(hd(wf:q(email_address))).
+
+check_username(_, _) ->
+    case string:chr(hd(wf:q(username)), $ ) of
+	0 ->
+	    true;
+	_ ->
+	    false
+    end.
