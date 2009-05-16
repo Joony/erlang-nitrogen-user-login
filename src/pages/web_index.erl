@@ -10,4 +10,5 @@ title() ->
 
 body() ->
 	#label{text="web_index body."}.
+	
 event(_) -> ok.

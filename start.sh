@@ -7,5 +7,4 @@ erl \
 	-pa ./ebin -pa ./include \
 	-s make all \
 	-eval "application:start(user_login)" \
-        -eval "application:start(ecouch)" \
-        -eval "db_utils:start()"
+	-eval "db_utils:start()"
