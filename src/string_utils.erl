@@ -20,7 +20,15 @@
 %%
 
 -module(string_utils).
--export([generate_random_string/1]).
+-export([generate_random_string/1, md5_hex/1]).
 
 generate_random_string(Length) ->
     lists:flatten(lists:foldl(fun(X,AccIn) -> [random:uniform(90) + 32|AccIn] end, [], lists:seq(1,Length))).
+
+md5_hex(S) ->
+    [hex(N) || <<N:4>> <= erlang:md5(S)].
+
+hex(N) when N < 10 ->
+        $0+N;
+hex(N) when N >= 10, N < 16 ->
+    $a+(N-10).
