@@ -36,11 +36,9 @@ init() ->
 %%% add the user to the users database
 add_user(Username, EmailAddress, Password) ->
     <<PasswordDigest:160>> = crypto:sha(Password),
-    Code = string_utils:generate_random_string(32),
-    <<CodeDigest:128>> = crypto:md5(Code),
-    io:format("CodeDigest: ~w~n", [CodeDigest]),
+    VerificationCode = string_utils:md5_hex(string_utils:generate_random_string(32)),
     UsersRow = #users { username=Username, email_address=EmailAddress, password=PasswordDigest, date_joined=erlang:universaltime() },
-    VerificationCodeRow = #verification_codes { email_address=EmailAddress, verification_code=Code },
+    VerificationCodeRow = #verification_codes { email_address=EmailAddress, verification_code=VerificationCode },
     F = fun() ->
 		mnesia:write(UsersRow),
 		mnesia:write(VerificationCodeRow)
@@ -49,7 +47,7 @@ add_user(Username, EmailAddress, Password) ->
 	{atomic, Val} ->
 	    case validate_user(Username, Password) of
 		{valid, _ID} ->
-		    email_utils:send_email_verification_code(EmailAddress, CodeDigest),
+		    email_utils:send_email_verification_code(EmailAddress, VerificationCode),
 		    ok;
 		{aborted, Reason} ->
 		    io:format("Failed to login after registration. Reason: ~s~n", [Reason]),
