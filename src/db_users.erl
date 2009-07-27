@@ -162,12 +162,20 @@ get_email_address(Username) ->
 
 verify_email(Code) ->
     % get the username from the verification_codes table
-    [VerificationCodesEmail] = mnesia:read(verification_codes_email, Code, write),
-    Username = VerificationCodesEmail#verification_codes_email.username,
+    io:format("1: ~s~n", [Code]),
     F = fun() ->
-		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
-		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
-		mnesia:write(VerificationLevelsUpdate)
+		mnesia:read(verification_codes_email, Code, write)
 	end,
-    mnesia:transaction(F).
+    {atomic, [VerificationCodesEmailRow]} = mnesia:transaction(F),
+    io:fwrite("2: ~w~n", [VerificationCodesEmailRow]),
+    Username = VerificationCodesEmailRow#verification_codes_email.username,
+    io:format("Name is: ~s~n", [Username]).
+    
+    
+%   F = fun() ->
+%		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
+%		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
+%		mnesia:write(VerificationLevelsUpdate)
+%	end,
+%    mnesia:transaction(F).
 
