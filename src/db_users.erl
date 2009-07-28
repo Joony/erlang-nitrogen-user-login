@@ -20,7 +20,7 @@
 -module(db_users).
 -include("wf.inc").
 -include("config.inc").
--export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, update_verification_code/2, delete_verification_code/1]).
+-export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, update_verification_code/2, delete_verification_code/1, invalidate_email/1]).
 
 -include_lib("stdlib/include/qlc.hrl").
 
@@ -162,20 +162,24 @@ get_email_address(Username) ->
 
 verify_email(Code) ->
     % get the username from the verification_codes table
-    io:format("1: ~s~n", [Code]),
-    F = fun() ->
-		mnesia:read(verification_codes_email, Code, write)
+    FGetUsername = fun() ->
+		mnesia:read(verification_codes_email, Code)
 	end,
-    {atomic, [VerificationCodesEmailRow]} = mnesia:transaction(F),
-    io:fwrite("2: ~w~n", [VerificationCodesEmailRow]),
+    {atomic, [VerificationCodesEmailRow]} = mnesia:transaction(FGetUsername),
     Username = VerificationCodesEmailRow#verification_codes_email.username,
-    io:format("Name is: ~s~n", [Username]).
-    
-    
-%   F = fun() ->
-%		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
-%		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
-%		mnesia:write(VerificationLevelsUpdate)
-%	end,
-%    mnesia:transaction(F).
+    io:format("Username is: ~s~n", [Username]),
+    FUpdateVerifiedEmail = fun() ->
+		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
+		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
+		mnesia:write(VerificationLevelsUpdate)
+	end,
+    io:format("Test: ~w~n", [mnesia:transaction(FUpdateVerifiedEmail)]).
+
+invalidate_email(Username) ->
+    FUpdateVerifiedEmail = fun() ->
+		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
+		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=false},
+		mnesia:write(VerificationLevelsUpdate)
+	end,
+    mnesia:transaction(FUpdateVerifiedEmail).
 
