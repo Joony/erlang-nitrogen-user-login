@@ -20,7 +20,7 @@
 -module(db_users).
 -include("wf.inc").
 -include("config.inc").
--export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, update_verification_code/2, delete_verification_code/1, invalidate_email/1]).
+-export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, update_verification_code/2, invalidate_email/1, delete_email_verification_code/1, new_email_verification_code/1]).
 
 -include_lib("stdlib/include/qlc.hrl").
 
@@ -45,7 +45,7 @@ add_user(Username, EmailAddress, Password) ->
     UsersRow = #users { username=Username, email_address=EmailAddress, password=PasswordDigest },
     ChronologyUsersRow = #chronology_users { username=Username, date_joined=CurrentTime, last_logged_in=CurrentTime },
     VerificationLevelsRow = #verification_levels { username=Username },
-    VerificationCodesEmailRow = #verification_codes_email { verification_code=VerificationCode, username=Username },
+    VerificationCodesEmailRow = #verification_codes_email { username=Username, verification_code=VerificationCode },
     F = fun() ->
 		mnesia:write(UsersRow),
 		mnesia:write(ChronologyUsersRow),
@@ -92,12 +92,6 @@ update_last_logged_in(Username) ->
 		[E] = mnesia:read(chronology_users, Username, write),
 		Update = E#chronology_users{last_logged_in=erlang:universaltime()},
 		mnesia:write(Update)
-	end,
-    mnesia:transaction(F).
-
-delete_verification_code(VerificationCode) ->
-    F = fun() ->
-		mnesia:delete(verification_codes_email, VerificationCode, write)
 	end,
     mnesia:transaction(F).
 
@@ -161,9 +155,8 @@ get_email_address(Username) ->
 
 
 verify_email(Code) ->
-    % get the username from the verification_codes table
     FGetUsername = fun() ->
-		mnesia:read(verification_codes_email, Code)
+		mnesia:match_object({verification_codes_email, '_', Code})
 	end,
     {atomic, [VerificationCodesEmailRow]} = mnesia:transaction(FGetUsername),
     Username = VerificationCodesEmailRow#verification_codes_email.username,
@@ -173,7 +166,14 @@ verify_email(Code) ->
 		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
 		mnesia:write(VerificationLevelsUpdate)
 	end,
-    io:format("Test: ~w~n", [mnesia:transaction(FUpdateVerifiedEmail)]).
+    io:format("Test: ~w~n", [mnesia:transaction(FUpdateVerifiedEmail)]),
+    delete_email_verification_code(Username).
+
+delete_email_verification_code(Username) ->
+    F = fun() ->
+		mnesia:delete({verification_codes_email, Username})
+	end,
+    io:format("Delete email verification code: ~w~n", [mnesia:transaction(F)]).
 
 invalidate_email(Username) ->
     FUpdateVerifiedEmail = fun() ->
@@ -183,3 +183,10 @@ invalidate_email(Username) ->
 	end,
     mnesia:transaction(FUpdateVerifiedEmail).
 
+new_email_verification_code(Username) ->
+    VerificationCode = string_utils:md5_hex(string_utils:generate_random_string(32)),
+    VerificationCodesEmailRow = #verification_codes_email { username=Username, verification_code=VerificationCode },
+    F = fun() ->
+		mnesia:write(VerificationCodesEmailRow)
+	end,
+    mnesia:transaction(F).
