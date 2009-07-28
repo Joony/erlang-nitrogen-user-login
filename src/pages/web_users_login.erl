@@ -45,7 +45,7 @@ event(login) ->
     case db_users:validate_user(hd(wf:q(username)), hd(wf:q(password))) of
 	{ valid, _ID } ->
 	    io:format("User: ~s has logged in~n", [wf:q(username)]),
-	    wf:flash("Correct"),
+	    %wf:flash("Correct"),
 	    wf:user(hd(wf:q(username))),
 	    wf:redirect("dashboard");
 	_ ->

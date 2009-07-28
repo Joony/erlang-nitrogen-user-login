@@ -20,7 +20,7 @@
 -module(db_users).
 -include("wf.inc").
 -include("config.inc").
--export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, update_verification_code/2, invalidate_email/1, delete_email_verification_code/1, new_email_verification_code/1]).
+-export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, invalidate_email/1, delete_email_verification_code/1, new_email_verification_code/1]).
 
 -include_lib("stdlib/include/qlc.hrl").
 
@@ -101,18 +101,6 @@ delete_user(Username) ->
 	end,
     mnesia:transaction(F).
 
-%% not implemented yet, but will be used for the forgot password process if the user has already requested a code.
-update_verification_code(EmailAddress) ->
-    update_verification_code(EmailAddress, "").
-
-update_verification_code(EmailAddress, Code) ->
-    F = fun() ->
-		[E] = mnesia:read(verification_codes_email, Code, write),
-		Update = E#verification_codes_email{verification_code=Code},
-		mnesia:write(Update)
-	end,
-    mnesia:transaction(F).
-
 %% result seems backwards compared to the name
 is_username_used(Username) ->
     case db_utils:do(qlc:q ([X#users.username || X <- mnesia:table(users), string:equal(X#users.username, Username)])) of
@@ -158,22 +146,27 @@ verify_email(Code) ->
     FGetUsername = fun() ->
 		mnesia:match_object({verification_codes_email, '_', Code})
 	end,
-    {atomic, [VerificationCodesEmailRow]} = mnesia:transaction(FGetUsername),
-    Username = VerificationCodesEmailRow#verification_codes_email.username,
-    io:format("Username is: ~s~n", [Username]),
-    FUpdateVerifiedEmail = fun() ->
-		[VerificationLevels] = mnesia:read(verification_levels, Username, write),
-		VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
-		mnesia:write(VerificationLevelsUpdate)
-	end,
-    io:format("Test: ~w~n", [mnesia:transaction(FUpdateVerifiedEmail)]),
-    delete_email_verification_code(Username).
+    case mnesia:transaction(FGetUsername) of
+	{atomic, [VerificationCodesEmailRow]} ->
+	    %{atomic, [VerificationCodesEmailRow]} = mnesia:transaction(FGetUsername),
+	    Username = VerificationCodesEmailRow#verification_codes_email.username,
+	    FUpdateVerifiedEmail = fun() ->
+					   [VerificationLevels] = mnesia:read(verification_levels, Username, write),
+					   VerificationLevelsUpdate = VerificationLevels#verification_levels{verified_email=true},
+					   mnesia:write(VerificationLevelsUpdate)
+				   end,
+	    mnesia:transaction(FUpdateVerifiedEmail),
+	    delete_email_verification_code(Username);
+	_ ->
+	    %io:format("Invalid verification code~n"),
+	    {aborted, "invalid verification code"}
+    end.
 
 delete_email_verification_code(Username) ->
     F = fun() ->
 		mnesia:delete({verification_codes_email, Username})
 	end,
-    io:format("Delete email verification code: ~w~n", [mnesia:transaction(F)]).
+    mnesia:transaction(F).
 
 invalidate_email(Username) ->
     FUpdateVerifiedEmail = fun() ->
