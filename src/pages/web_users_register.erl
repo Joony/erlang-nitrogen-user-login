@@ -59,7 +59,7 @@ body() ->
 	   ],
     wf:wire(submit, username, #validate { attach_to=username, validators=[#is_required { text="Required." }]}),
     wf:wire(submit, username, #validate { attach_to=username, validators=[#custom { text="Username already registered.", function=(fun(X, Y) -> is_username_used(X, Y) end) }] }),
-    wf:wire(submit, username, #validate { attach_to=username, validators=[#custom { text="Error: Spaces are not allowed in usernames.", function=(fun(X, Y) -> check_username(X, Y) end) }] }),
+    wf:wire(submit, username, #validate { attach_to=username, validators=[#custom { text="Error: Only letters, numbers, and underscores are allowed in usernames.", function=(fun(X, Y) -> check_username(X, Y) end) }] }),
     wf:wire(submit, username, #validate { attach_to=username, validators=[#min_length { text="Error: Username has to be at least three characters.", length=3 }] }),
     wf:wire(submit, email_address, #validate { attach_to=email_address, validators=[#is_required { text="Required." }] }),
     wf:wire(submit, email_address, #validate { attach_to=email_address, validators=[#is_email { text="Required: Ensure that you have entered your email address correctly." }] }),
@@ -72,6 +72,9 @@ body() ->
 event(register) ->
     io:format("response: ~s~n", [hd(wf:q(recaptcha_response_field))]),
     io:format("challenge ~s~n", [hd(wf:q(recaptcha_challenge_field))]),
+    
+    
+
     case db_users:add_user(hd(wf:q(username)), hd(wf:q(email_address)), hd(wf:q(password))) of
 	ok ->
 	    io:format("New user: ~s has signed up~n", [wf:q(username)]),
@@ -83,6 +86,8 @@ event(register) ->
 event(_) -> ok.
 
 
+
+
 is_username_used(_, _) ->
     db_users:is_username_used(hd(wf:q(username))).
 
@@ -90,8 +95,14 @@ is_email_used(_, _) ->
     db_users:is_email_used(hd(wf:q(email_address))).
 
 check_username(_, _) ->
-    case string:chr(hd(wf:q(username)), $ ) of
-	0 ->
+%    case string:chr(hd(wf:q(username)), $ ) of
+%	0 ->
+%	    true;
+%	_ ->
+%	    false
+%    end.
+    case regexp:first_match(hd(wf:q(username)), "[^A-z0-9.]") of
+	nomatch ->
 	    true;
 	_ ->
 	    false
