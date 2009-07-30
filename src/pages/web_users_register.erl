@@ -18,8 +18,10 @@
 %% users will automatically be logged in.
 %%
 
--module (web_users_register).
--include_lib ("nitrogen/include/wf.inc").
+-module(web_users_register).
+-include_lib("nitrogen/include/wf.inc").
+-include_lib("nitrogen_elements/include/nitrogen_elements.hrl").
+%-include_lib("nitrogen_elements/src/element_recaptcha/elements.hrl").
 -compile(export_all).
 
 main() ->
@@ -49,6 +51,8 @@ body() ->
 	    #br {},
 	    #password { id=password2 },
 	    #br {},
+	    #recaptcha {},
+	    #br {},
 	    #button { id=submit, text="Register", postback=register },
 	    #flash { id=flash },
 	    #panel { id=test }
@@ -64,10 +68,10 @@ body() ->
     wf:wire(submit, password, #validate { attach_to=password, validators=[#min_length { text="Error: Password must be at least six characters.", length=6 }] }),
     wf:render(Body).
 
-    
-
 
 event(register) ->
+    io:format("response: ~s~n", [hd(wf:q(recaptcha_response_field))]),
+    io:format("challenge ~s~n", [hd(wf:q(recaptcha_challenge_field))]),
     case db_users:add_user(hd(wf:q(username)), hd(wf:q(email_address)), hd(wf:q(password))) of
 	ok ->
 	    io:format("New user: ~s has signed up~n", [wf:q(username)]),
@@ -92,3 +96,4 @@ check_username(_, _) ->
 	_ ->
 	    false
     end.
+

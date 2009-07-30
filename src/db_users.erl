@@ -53,7 +53,7 @@ add_user(Username, EmailAddress, Password) ->
 		mnesia:write(VerificationCodesEmailRow)
 	end,
     case mnesia:transaction(F) of
-	{atomic, Val} ->
+	{atomic, _} ->
 	    case validate_user(Username, Password) of
 		{valid, _ID} ->
 		    email_utils:send_email_verification_code(EmailAddress, VerificationCode),
@@ -78,7 +78,7 @@ validate_user(Username, Password) ->
 		    case update_last_logged_in(Username) of
 			{atomic, ok} ->
 			    {valid, hd(Results)};
-			{aborted, Val} ->
+			{aborted, _} ->
 			    io:format("Error: Unable to update last_logged_in for user ~s~n", [Username]),
 			    {aborted, "Not valid"}
 		    end;
@@ -97,7 +97,10 @@ update_last_logged_in(Username) ->
 
 delete_user(Username) ->
     F = fun() ->
-		mnesia:delete(users, Username, write)
+		mnesia:delete(users, Username, write),
+		mnesia:delete(verification_codes_email, Username, write),
+		mnesia:delete(chronology_users, Username, write),
+		mnesia:delete(verification_levels, Username, write)
 	end,
     mnesia:transaction(F).
 

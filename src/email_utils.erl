@@ -33,5 +33,5 @@ test() ->
 
 send_email_verification_code(To, VerificationCode) ->
     %%io:format("Code: ~w~n", [VerificationCode]),
-    esmtp:send(esmtp_mime:msg("<" ++ To ++ ">","<jonathan.mcallister@gmail.com>", "User Login in Erlang Example - Action required - Please verify your email address", "To verify your email address, click the link below.<br /><br /><a href=\"http://127.0.0.1:8000/web/user/verify/email/?key=" ++ VerificationCode ++ "\">Confirm you email address now.</a>" )).
+    esmtp:send(esmtp_mime:msg("<" ++ To ++ ">","<jonathan.mcallister@gmail.com>", "User Login in Erlang Example - Action required - Please verify your email address", "To verify your email address, click the link below.<br /><br /><a href=\"http://127.0.0.1:8000/web/users/verify/email/?code=" ++ VerificationCode ++ "\">Confirm you email address now.</a>" )).
 
