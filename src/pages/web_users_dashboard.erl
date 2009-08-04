@@ -21,8 +21,9 @@
 -include_lib ("nitrogen/include/wf.inc").
 -compile(export_all).
 
-main() -> 
-    case wf:user() of
+main() ->
+    Username = wf:user(),
+    case Username of
 	undefined ->
 	    wf:redirect("login");
 	_ ->

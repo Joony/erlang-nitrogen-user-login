@@ -51,7 +51,7 @@ body() ->
 	    #br {},
 	    #password { id=password2 },
 	    #br {},
-	    #recaptcha {},
+	    #recaptcha { id=recaptcha, public_key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
 	    #br {},
 	    #button { id=submit, text="Register", postback=register },
 	    #flash { id=flash },
@@ -70,23 +70,27 @@ body() ->
 
 
 event(register) ->
-    io:format("response: ~s~n", [hd(wf:q(recaptcha_response_field))]),
-    io:format("challenge ~s~n", [hd(wf:q(recaptcha_challenge_field))]),
-    
-    
-
-    case db_users:add_user(hd(wf:q(username)), hd(wf:q(email_address)), hd(wf:q(password))) of
-	ok ->
-	    io:format("New user: ~s has signed up~n", [wf:q(username)]),
-	    wf:user(hd(wf:q(username))),
-            wf:redirect("dashboard");
-	aborted ->
-	    wc:flash("Error: Registration failed, please try again.")
+    %io:format("response: ~s~n", [hd(wf:q(recaptcha_response_field))]),
+    %io:format("challenge: ~s~n", [hd(wf:q(recaptcha_challenge_field))]),
+    %io:format("ip: ~p~n", [inet_parse:ntoa(ip())]),
+    %io:format("answer: ~p~n", [util_recaptcha:recaptcha_check_answer(inet_parse:ntoa(ip()), hd(wf:q(recaptcha_challenge_field)), hd(wf:q(recaptcha_response_field)))]),
+    case util_recaptcha:check_answer(inet_parse:ntoa(util_ip:ip()), hd(wf:q(recaptcha_challenge_field)), hd(wf:q(recaptcha_response_field))) of
+	{"true", "success"} ->
+	    case db_users:add_user(hd(wf:q(username)), hd(wf:q(email_address)), hd(wf:q(password))) of
+		ok ->
+		    io:format("New user: ~s has signed up~n", [wf:q(username)]),
+		    wf:user(hd(wf:q(username))),
+		    wf:redirect("dashboard");
+		aborted ->
+		    wf:flash("Error: Registration failed, please try again.")
+	    end;
+	{"false", _} ->
+	    %{_,{_,_,Error}} = util_recaptcha:get_error(ErrorCode),
+	    %io:format("Error: ~p~n", [Error]),
+	    %wf:update(recaptcha, #panel { id=recaptcha, body="<script type='text/javascript'>" ++ Error ++ "</script>" }),
+	    wf:flash("Error: The CAPTCHA answer was incorrect, please try again.")
     end;
 event(_) -> ok.
-
-
-
 
 is_username_used(_, _) ->
     db_users:is_username_used(hd(wf:q(username))).
@@ -95,13 +99,7 @@ is_email_used(_, _) ->
     db_users:is_email_used(hd(wf:q(email_address))).
 
 check_username(_, _) ->
-%    case string:chr(hd(wf:q(username)), $ ) of
-%	0 ->
-%	    true;
-%	_ ->
-%	    false
-%    end.
-    case regexp:first_match(hd(wf:q(username)), "[^A-z0-9.]") of
+    case regexp:first_match(hd(wf:q(username)), "[^A-z0-9.]") of % not a letter, not a number, or not a period
 	nomatch ->
 	    true;
 	_ ->

@@ -20,7 +20,7 @@
 -module(db_users).
 -include("wf.inc").
 -include("config.inc").
--export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, verify_email/1, invalidate_email/1, delete_email_verification_code/1, new_email_verification_code/1]).
+-export([init/0, add_user/3, validate_user/2, delete_user/1, is_username_used/1, is_email_used/1, get_email_address/1, update_email_address/2, verify_email/1, invalidate_email/1, delete_email_verification_code/1, new_email_verification_code/1]).
 
 -include_lib("stdlib/include/qlc.hrl").
 
@@ -144,6 +144,14 @@ check(Username, EmailAddress, Input) ->
 get_email_address(Username) ->
     db_utils:do(qlc:q([X#users.email_address || X <- mnesia:table(users), X#users.username =:= Username])).
 
+update_email_address(Username, NewEmailAddress) ->
+    FUpdateEmailAddress = fun() ->
+				  [EmailAddress] = mnesia:read(users, Username, write),
+				  EmailAddressUpdate = EmailAddress#users{email_address=NewEmailAddress},
+				  mnesia:write(EmailAddressUpdate)
+			  end,
+    mnesia:transaction(FUpdateEmailAddress).
+    % TODO: invalidate the email address
 
 verify_email(Code) ->
     FGetUsername = fun() ->
